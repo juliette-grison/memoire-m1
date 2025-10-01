@@ -1,5 +1,5 @@
 # Impact of the 1992 Cod Moratorium on Educational Attainment in the Province of Newfoundland and Labrador, Canada
-_Master's Thesis by Juliette GRISON_
+_First Year Master's Thesis by Juliette GRISON_
 
 ## Abstract
 The 1992 cod moratorium led to the largest mass layoff in Canadian history, displacing
@@ -34,4 +34,5 @@ diminué. Le moratoire n’a pas eu d’effet significatif sur l’éducation po
 Cependant, ces derniers résultats doivent être interprétés avec prudence, car les tests de
 robustesse utilisant des groupes de contrôle alternatifs ont révélé certaines limites du modèle.
 Cette recherche suggère qu’en réponse à la perturbation économique du secteur de
-la pêche, les résidents affectés se sont orientés vers la
+la pêche, les résidents affectés se sont orientés vers la formation axée sur les compétences
+comme moyen de transition vers d’autres industries.
