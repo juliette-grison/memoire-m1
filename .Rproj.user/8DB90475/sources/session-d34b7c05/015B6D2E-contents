@@ -1,0 +1,1019 @@
+---
+title: "code"
+---
+
+# Set up
+
+## Import des librairies
+
+```{r}
+library(car)
+library(corrplot)
+library(dplyr)
+library(EnvStats) 
+library(ggplot2)
+library(MASS)
+library(purrr)
+library(readr)
+```
+
+## Import des données
+```{r}
+base <- read_csv("data/base.csv")
+```
+
+## Format des données
+```{r}
+base[,c(1:3)]=lapply(base[,c(1:3)],as.character)
+base[,c(4:16)]=lapply(base[,c(4:16)],as.numeric)
+base$period <- as.factor(base$period)
+```
+
+## Variables d'âge : petites modifications
+```{r}
+base <- base |> 
+  # Renommage
+  rename(
+    a0_14_ratio = `0_14y_ratio`,
+    a15_24_ratio = `15_24y_ratio`,
+    a25_44_ratio = `25_44y_ratio`,
+    a45_over_ratio = `45_over_ratio`
+  ) |>
+  # Réunion des variables 25-44 et 45+
+  mutate(a25_over_ratio = a25_44_ratio + a45_over_ratio) |>
+  # Suppression des anciennes variables
+  dplyr::select(-a25_44_ratio, -a45_over_ratio) |>
+  # Repositionnement de la nouvelle variable dans le df
+  relocate(a25_over_ratio, .after = a15_24_ratio)
+```
+
+## Nom des subdivisions en majuscule
+```{r}
+base$CSD_Name <- toupper(base$CSD_Name)
+```
+
+# Assignation aux groupes traitement / contrôle
+
+## Newfoundland and Labrador
+```{r}
+subdivisions_cotieres_nl <- c(
+  
+  # DIVISION NO. 1
+  "TREPASSEY", "PORTUGAL COVE SOUTH", "BISCAY BAY", "ST.
+  SHOTT'S", "RENEWS-CAPPAHAYDEN", "FERMEUSE", "PORT
+  KIRWAN", "AQUAFORTE", "FERRYLAND", "ST. MARY'S", "ST.
+  VINCENT'S-ST. STEPHENS-PETER'S RIVER",
+  "GASKIERS-POINT LA HAYE", "ST. MARY'S", "RIVERHEAD",
+  "ADMIRAL'S BEACH", "ST. JOSEPH'S", "MOUNT
+  CARMEL-MITCHELL'S BROOK-ST. CATHERINE'S", "PLACENTIA",
+  "FRESHWATER", "JERSEY SIDE", "DUNVILLE", "FOX
+  HARBOUR", "LONG HARBOUR-MOUNT ARLINGTON HEIGHTS", "SOUTHERN
+  HARBOUR", "ARNOLD'S COVE", "COME BY CHANCE",
+  "SUNNYSIDE", "CHANCE COVE", "NORMAN'S COVE-LONG COVE",
+  "CHAPEL ARM", "OLD PERLICAN", "BAY DE VERDE",
+  "SMALL POINT-BROAD COVE-BLACKHEAD-ADAMS COVE", "SALMON
+  COVE", "VICTORIA", "CARBONEAR", "BRYANT'S
+  COVE", "HARBOUR GRACE", "HARBOUR GRACE SOUTH", "UPPER
+  ISLAND COVE", "BISHOP'S COVE", "TILTON", "SPANIARD'S
+  BAY", "BAY ROBERTS", "COLLIERS", "CONCEPTION HARBOUR",
+  "AVONDALE", "HARBOUR MAIN-CHAPEL COVE-LAKEVIEW",
+  "HOLYROOD", "LAWRENCE POND", "CONCEPTION BAY SOUTH",
+  "WABANA", "PORTUGAL COVE", "POUCH COVE", "FLATROCK",
+  "TORBAY", "ST. PHILLIPS", "ST. THOMAS", "ST. JOHN'S",
+  "WEDGEWOOD PARK", "HOGAN'S POND", "PARADISE", "MOUNT
+  PEARL", "GOULDS", "PETTY HARBOUR-MADDOX COVE",
+  
+  "DIVISION NO. 1, SUBD. V", "DIVISION NO. 1, SUBD. U",
+  "DIVISION NO. 1, SUBD. W", "DIVISION NO. 1, SUBD. X",
+  "DIVISION NO. 1, SUBD. C", "DIVISION NO. 1, SUBD. B",
+  "DIVISION NO. 1, SUBD. A", "DIVISION NO. 1, SUBD. Y",
+  "DIVISION NO. 1, SUBD. E", "DIVISION NO. 1, SUBD. F",
+  "DIVISION NO. 1, SUBD. G", "DIVISION NO. 1, SUBD. H",
+  "DIVISION NO. 1, SUBD. I", "DIVISION NO. 1, SUBD. L",
+  "DIVISION NO. 1, SUBD. N", "DIVISION NO. 1, SUBD. P",
+  "DIVISION NO. 1, SUBD. C",
+  
+  # DIVISION NO. 2
+  "LEWIN'S COVE", "PORT AU BRAS", "BURIN", "ST. LAWRENCE",
+  "LAWN", "LAMALINE", "LORD'S COVE", "POINT MAY",
+  "POINT AU GAUL, FRENCHMAN'S COVE", "FORTUNE", "GRAND BANK",
+  "GARNISH", "WINTERLAND", "MARYSTOWN", "FOX
+  COVE-MORTIER", "BAY L'ARGENT", "ST. BERNARD'S", "GRAND LE
+  PIERRE", "RUSHOON", "PARKER'S COVE", "ST.
+  JOSEPH'S", "TERRENCEVILLE", "RED HARBOUR", "WOODY ISLAND",
+  "ENGLISH HARBOUR EAST", "BAINE HARBOUR",
+  "JACQUES FONTAINE", "LITTLE BAY EAST",
+  
+  "DIVISION NO. 2, SUBD. F", "DIVISION NO. 2, SUBD. G",
+  "DIVISION NO. 2, SUBD. H", "DIVISION NO. 2, SUBD. I",
+  "DIVISION NO. 2, SUBD. J", "DIVISION NO. 2, SUBD. D",
+  "DIVISION NO. 2, SUBD. C", "DIVISION NO. 2, SUBD. L",
+  "DIVISION NO. 2, SUBD. K",
+  
+  # DIVISION NO. 3
+  "RENCONTRE EAST", "ST. JACQUES-COOMB'S COVE", "BELLEORAM",
+  "POOL'S COVE", "HARBOUR BRETON", "SEAL
+  COVE-WHITE BAY", "HERMITAGE", "GAULTOIS", "CONNE RIVER",
+  "MILLTOWN-HEAD OF BAY D'ESPOIR", "ST. ALBAN'S",
+  "MORRISVILLE", "RAMEA", "BURGEO", "ISLE AUX MORTS", "BURNT
+  ISLANDS", "CHANNEL-PORT AUX BASQUES", "ROSE
+  BLANCHE-HARBOUR LE COU",
+  
+  "DIVISION NO. 3, SUBD. A", "DIVISION NO. 3, SUBD. B",
+  "DIVISION NO. 3, SUBD. C", "DIVISION NO. 3, SUBD. D",
+  "DIVISION NO. 3, SUBD. E", "DIVISION NO. 3, SUBD. F",
+  "DIVISION NO. 3, SUBD. H", "DIVISION NO. 3, SUBD. I",
+  "DIVISION NO. 3, SUBD. J",
+  
+  # DIVISION NO. 4
+  "ST. GEORGE'S", "GALLANTS", "STEPHENVILLE CROSSING",
+  "STEPHENVILLE", "KIPPENS", "BERRY HEAD", "CAPE ST.
+  GEORGE", "LOURDES", "PORT AU PORT WEST-AGUATHUNA-FELIX
+  COVE",
+  
+  "DIVISION NO. 4, SUBD. A", "DIVISION NO. 4, SUBD. B",
+  "DIVISION NO. 4, SUBD. C", "DIVISION NO. 4, SUBD. D",
+  "DIVISION NO. 4, SUBD. E",
+  
+  # DIVISION NO. 5
+  "CORNER BROOK", "HALFWAY POINT", "WOOD'S ISLAND",
+  "MCIVER'S", "COX'S COVE", "LARK HARBOUR", "MEADOWS",
+  "SUMMERSIDE", "IRISHTOWN", "HUGHES BROOK", "MOUNT MORIAH",
+  "YORK HARBOUR",
+  
+  "DIVISION NO. 5, SUBD. G", "DIVISION NO. 5, SUBD. D",
+  
+  # DIVISION NO. 6
+  "NORRIS ARM", "GANDER", "APPLETON", "GLENWOOD", "NORTHERN
+  ARM", "GRAND FALLS", "WINDSOR", "BISHOP'S
+  FALLS", "PETERVIEW", "BOTWOOD", "BADGER", "MILLERTOWN",
+  "BUCHANS",
+  
+  # DIVISION NO. 7
+   "CLARENVILLE", "SHOAL HARBOUR", "TRINITY", "PORT REXTON",
+  "LITTLE CATALINA", "PORT UNION", "ELLISTON",
+  "CATALINA", "BONAVISTA", "KEELS", "DUNTARA", "KING'S COVE",
+  "PLATE COVE EAST", "PLATE COVE WEST",
+  "MUSGRAVETOWN", "PORT BLANDFORD", "TRAYTOWN", "SANDY COVE",
+  "TERRA NOVA", "HAPPY ADVENTURE", "EASTPORT",
+  "SANDRINGHAM", "GLOVERTOWN", "SALVAGE", "GAMBO", "ST.
+  BRENDAN'S", "HARE BAY", "CENTREVILLE", "TRINITY",
+  "GREENSPOND", "WAREHAM", "DOVER", "BADGER'S
+  QUAY-VALLEYFIELD-POOL'S ISLAND", "WESLEYVILLE", "NEWTOWN",
+  "MELROSE", "INDIAN BAY",
+  
+  "DIVISION NO. 7, SUBD. M", "DIVISION NO. 7, SUBD. L",
+  "DIVISION NO. 7, SUBD. K", "DIVISION NO. 7, SUBD. J",
+  "DIVISION NO. 7, SUBD. I", "DIVISION NO. 7, SUBD. G",
+  "DIVISION NO. 7, SUBD. F", "DIVISION NO. 7, SUBD. E",
+  "DIVISION NO. 7, SUBD. D", "DIVISION NO. 7, SUBD. B",
+  "DIVISION NO. 7, SUBD. A",
+  
+  # DIVISION NO. 8
+  "LUMSDEN", "MUSGRAVE HARBOUR", "CARMANVILLE", "FOGO", "JOE
+  BATT'S ARM-BARR'D ISLANDS", "TILTING", "CHANGE
+  ISLANDS", "SELDOM-LITTLE SELDOM", "DURRELL", "TWILLINGATE",
+  "CROW HEAD", "BAYVIEW", "COTTLESVILLE",
+  "SUMMERFORD", "CAMPBELLTON", "BIRCHY BAY", "COMFORT
+  COVE-NEWSTEAD", "EMBREE", "LEWISPORTE", "LITTLE BURNT
+  BAY", "POINT OF BAY", "LEADING TICKLES WEST", "POINT
+  LEAMINGTON", "PILLEY'S ISLAND", "TRITON", "LUSHES
+  BIGHT-BEAUMONT-BEAUMONT NORTH", "SOUTH BROOK", "ROBERT'S
+  ARM", "SPRINGDALE", "PORT ANSON", "LITTLE BAY",
+  "LITTLE BAY ISLANDS", "WILD BIGHT", "KING'S POINT",
+  "NIPPERS HARBOUR", "BURLINGTON", "MIDDLE ARM", "TILT
+  COVE", "FLEUR DE LYS", "LA SCIE", "BRENT'S COVE",
+  "PACQUET", "BAIE VERTE", "SEAL COVE", "COACHMAN'S COVE",
+  "WESTPORT", "MING'S BIGHT", "WOODSTOCK", "MILES COVE",
+  
+  "DIVISION NO. 8, SUBD. M", "DIVISION NO. 8, SUBD. L",
+  "DIVISION NO. 8, SUBD. I", "DIVISION NO. 8, SUBD. H",
+  "DIVISION NO. 8, SUBD. G", "DIVISION NO. 8, SUBD. F",
+  "DIVISION NO. 8, SUBD. E", "DIVISION NO. 8, SUBD. D",
+  "DIVISION NO. 8, SUBD. C", "DIVISION NO. 8, SUBD. P",
+  "DIVISION NO. 8, SUBD. O", "DIVISION NO. 8, SUBD. A",
+  
+  # DIVISION NO. 9
+  "GREAT HARBOUR DEEP", "ENGLEE", "RODDICKTON", "CONCHE",
+  "TROUT RIVER", "WOODY POINT", "NORRIS POINT",
+  "ROCKY HARBOUR", "DANIEL'S HARBOUR", "COW HEAD", "PARSONS
+  POND", "HAWKE'S BAY", "PORT SAUNDERS", "ST.
+  PAUL'S", "PORT AU CHOIX", "ANCHOR POINT", "FLOWER'S COVE",
+  "SANDY COVE", "BIRD COVE", "BIDE ARM", "MAIN
+  BROOK", "ST. ANTHONY", "GLENBURNIE-BIRCHY HEAD-SHOAL
+  BROOK", "ST. LUNAIRE-GRIQUET", "COOK'S HARBOUR",
+  "RALEIGH", "SALLY'S COVE", "GOOSE COVE EAST", "BELLBURNS",
+  "RIVER OF PONDS",
+  
+  "DIVISION NO. 9, SUBD. F", "DIVISION NO. 9, SUBD. A",
+  "DIVISION NO. 9, SUBD. C", "DIVISION NO. 9, SUBD. D",
+  "DIVISION NO. 9, SUBD. H", "DIVISION NO. 9, SUBD. G",
+  
+  # DIVISION NO. 10
+  "L'ANSE AU LOUP", "RED BAY", "L'ANSE AU CLAIR", "FORTEAU",
+  "WEST ST. MODESTE", "PINWARE", "PORT HOPE 
+  SIMPSON", "MARY'S HARBOUR", "CARTWRIGHT", "RIGOLET", "NORTH
+  WEST RIVER", "HAPPY VALLEY-GOOSE BAY",
+  "LABRADOR CITY", "WABUSH", "MAKKOVIK", "HOPEDALE", "DAVIS
+  INLET", "NAIN", "POSTVILLE", 
+  
+  "DIVISION NO. 10, SUBD. A", "DIVISION NO. 10, SUBD. B",
+  "DIVISION NO. 10, SUBD. C", "DIVISION NO. 10, SUBD. E"
+
+)
+```
+
+## Prince Edward Island
+```{r}
+subdivisions_cotieres_pei <- c(
+  "MURRAY HARBOUR", "MURRAY RIVER", "GEORGETOWN", "KINGS,
+  ROYALTY", "SOURIS", "ST. PETERS", "MORELL", "SOUTHPORT",
+  "CHARLOTTETOWN", "EAST ROYALTY", "WEST ROYALTY", 
+  "CORNWALL", "ROCKY POINT 3", "VICTORIA", "NORTH RUSTICO", 
+  "BORDEN", "SUMMERSIDE", "ST. ELEANORS", "LENNOX ISLAND 1", 
+  "O'LEARY", "ALBERTON", "TIGNISH", "MIMINEGASH,",
+  "RESORT MUN. STAN.B.-HOPE R.-BAYV.-CAVEND.-N.RUST.",
+  
+  "TOWNSHIP 64", "TOWNSHIP 63", "TOWNSHIP 61", "TOWNSHIP 59",
+  "TOWNSHIP 66", "TOWNSHIP 53", "TOWNSHIP 54", "TOWNSHIP 55",
+  "TOWNSHIP 56", "TOWNSHIP 43", "TOWNSHIP 44", "TOWNSHIP 45",
+  "TOWNSHIP 46", "TOWNSHIP 40", "TOWNSHIP 39", "TOWNSHIP 38",
+  "TOWNSHIP 62", "TOWNSHIP 60", "TOWNSHIP 58", "TOWNSHIP 57",
+  "TOWNSHIP 48", "TOWNSHIP 49", "TOWNSHIP 67", "TOWNSHIP 29",
+  "TOWNSHIP 20", "TOWNSHIP 21", "TOWNSHIP 22", "TOWNSHIP 23",
+  "TOWNSHIP 24", "TOWNSHIP 33", "TOWNSHIP 34", "TOWNSHIP 35",
+  "TOWNSHIP 36", "TOWNSHIP 28", "TOWNSHIP 26", "TOWNSHIP 25",
+  "TOWNSHIP 18", "TOWNSHIP 17", "TOWNSHIP 16", "TOWNSHIP 15",
+  "TOWNSHIP 14", "TOWNSHIP 13", "TOWNSHIP 12", "TOWNSHIP 11",
+  "TOWNSHIP 10", "TOWNSHIP 9", "TOWNSHIP 8", "TOWNSHIP 7",
+  "TOWNSHIP 5", "TOWNSHIP 4", "TOWNSHIP 3", "TOWNSHIP 2",
+  "TOWNSHIP 1",
+  
+  "LOT 64", "LOT 63", "LOT 61", "LOT 59", "LOT 66", "LOT 53",
+  "LOT 54", "LOT 55", "LOT 56", "LOT 43", "LOT 44", "LOT 45",
+  "LOT 46", "LOT 40", "LOT 39", "LOT 38", "LOT 62", "LOT 60",
+  "LOT 58", "LOT 57", "LOT 48", "LOT 49", "LOT 67", "LOT 29",
+  "LOT 20", "LOT 21", "LOT 22", "LOT 23", "LOT 24", "LOT 33",
+  "LOT 34", "LOT 35", "LOT 36", "LOT 28", "LOT 26", "LOT 25",
+  "LOT 18", "LOT 17", "LOT 16", "LOT 15", "LOT 14", "LOT 13",
+  "LOT 12", "LOT 11", "LOT 10", "LOT 9", "LOT 8", "LOT 7", 
+  "LOT 5", "LOT 4", "LOT 3", "LOT 2", "LOT 1"
+  
+)
+```
+
+## New Brunswick
+```{r}
+subdivisions_cotieres_nb <- c(
+  "SAINT MARTINS", "ST. MARTINS", "SIMONDS", "SAINT JOHN",
+  "MUSQUASH", "GRAND MANAN", "SEAL COVE", "NORTH HEAD",
+  "CAMPOBELLO", "WEST ISLES", "LEPREAU", "PENNFIELD",
+  "BLACKS HARBOUR", "CLARENDON", "SAINT GEORGE", "ST. GEORGE",
+  "SAINT PATRICK", "SAINT ANDREWS", "SAINT ANDREWS",
+  "SAINT-CROIX", "DUFFERIN", "SAINT STEPHEN", "ST. STEPHEN",
+  "SAINT JAMES", "SAINT DAVID", "DUMBARTON", "GRAND HARBOUR",
+  "HAMMOND", "UPHAM", "HAMPTON", "HAMPTON", "ROTHESAY",
+  "ROTHESAY", "RENFORTH", "WESTFIELD", "GRAND BAY", 
+  "WESTFIELD",
+  "KINGSTON", "QUISPAMSIS", "GONDOLA POINT", "HOPEWELL",
+  "RIVERSIDE-ALBERT", "HARVEY", "ALMA", "ALMA", "HILLSBOROUGH",
+  "COVERDALE", "RIVERVIEW", "HILLSBOROUGH", "WESTMORLAND",
+  "PORT ELGIN", "BOTSFORD", "CAP-PELE", "SACKVILLE",
+  "SACKVILLE", "DORCHESTER", "DORCHESTER", "SHEDIAC", 
+  "MONCTON",
+  "MONCTON", "SHEDIAC", "RICHIBUCTO", "RICHIBUCTO", "REXTON",
+  "SAINT CHARLES", "SAINT-LOUIS", "SAINT-LOUIS-DE-KENT",
+  "CARLETON", "HARDWICKE", "GLENELG", "CHATHAM",
+  "CHATHAM", "DERBY", "NELSON", "NELSON-MIRAMICHI",
+  "BLACKVILLE", "BLACKVILLE", "DOAKTOWN", "LUDLOW",
+  "RED BANK 7", "SOUTHESK", "NORTHESK", "NEWCASTLE",
+  "NEWCASTLE", "DOUGLASTOWN", "EEL GROUND 2", "ALNWICK",
+  "NEGUAC", "BURNT CHURCH 14", "TABUSINTAC 9", "JACQUET RIVER",
+  "COLBORNE", "CHARLO", "BALMORAL", "BALMORAL",
+  "DALHOUSIE", "DALHOUSIE", "EEL RIVER 3", "EEL RIVER 
+  CROSSING",
+  "CAMPBELLTON", "TIDE HEAD", "BERESFORD", "POINTE-VERTE",
+  "PETIT-ROCHER", "BERESFORD", "NEW BANDON", "PAQUETVILLE",
+  "PAQUETVILLE", "SAINT-ISIDORE", "INKERMAN", "CARAQUET",
+  "BAS-CARAQUET", "CARAQUET", "SHIPPAGAN", "SHIPPAGAN",
+  "LAMEQUE", "BELLEDUNE", "BERTRAND", "NIGADOO", "GRANDE ANSE",   "GRANDE-ANSE", "MAISONNETTE"
+)
+```
+
+## British Columbia
+```{r}
+subdivisions_cotieres_bc <- c(
+  "SURREY", "WHITE ROCK", "DELTA", "RICHMOND", "UNIVERSITY ENDOWMENT AREA", "VANCOUVER", 
+  "C NORTH SAANICH", "SIDNEY", "CENTRAL SAANICH", "SAANICH", "CAPITAL", "SUBD. A", 
+  "OAK BAY", "VICTORIA", "ESQUIMALT", "CAPITAL", "SUBD. B", "CAPITAL", "SUBD. C", 
+  "COLE BAY 3", "UNION BAY 4", "EAST SAANICH 2", "SOUTH SAANICH 1", "GALIANO ISLAND 9", 
+  "MAYNE ISLAND 6", "BECHER BAY 1", "BECHER BAY 2", "NEW SONGHEES 1A", "GORDON RIVER 2", 
+  "PACHEENA 1", "SOOKE 1", "BURNABY", "NEW WESTMINSTER", "COQUITLAM", "BELCARRA", 
+  "PORT COQUITLAM", "PORT MOODY", "NORTH VANCOUVER", "WEST VANCOUVER", "GREATER VANCOUVER", 
+  "SUBD. A", "LIONS BAY", "SEMIAHMOO", "TSAWWASSEN", "MUSQUEAM 2", "COQUITLAM 2", 
+  "COQUITLAM 1", "BURRARD INLET 3", "MISSION 1", "CAPILANO 5", "BARNSTON ISLAND 3", 
+  "NORTH COWICHAN", "DUNCAN", "LAKE COWICHAN", "LADYSMITH", "COWICHAN VALLEY", "SUBD. A", 
+  "HALALT 2", "SQUAW-HAY-ONE 11", "TSUSSIE 6", "CHEMAINUS 13", "CLAOOSE 4", "COWICHAN 9", 
+  "COWICHAN 1", "KIL-PAH-LAS 3", "KUPER ISLAND 7", "MALACHAN 11", "MALAHAT 11", 
+  "OYSTER BAY 12", "PORTIER PASS 5", "THEIK 2", "WYAH 3", "NANAIMO", "NANAIMO", "SUBD. A", 
+  "PARKSVILLE", "QUALICUM BEACH", "NANAIMO", "SUBD. B", "NANAIMO RIVER 3", 
+  "NANAIMO RIVER 2", "NANAIMO RIVER 4", "NANAIMO TOWN 1", "NANOOSE", "QUALICUM", 
+  "PORT ALBERNI", "UCLUELET", "TOFINO", "ALBERNI-CLAYOQUOT", "SUBD. A", "AHAHSWINIS 1", 
+  "ALBERNI 2", "ANACLA 12", "CLAKAMUCUS 2", "ELHLATEESE 2", "HESQUIAT 1", "ITTATSOO 1", 
+  "MARKTOSIS 15", "NUMUKAMIS 1", "OPENIT 27", "OPITSAT 1", "SACHSA 4", "STUART BAY 6", 
+  "TSAHAHEH 1", "KEESHAN 9", "KLEHKOOT 2", "ESOWISTA 3", "REFUGE COVE 6", "COMOX", 
+  "COURTENAY", "CUMBERLAND", "COMOX-STRATHCONA", "SUBD. C", "GOLD RIVER", "ZEBALLOS", 
+  "TAHSIS", "CAMPBELL RIVER", "SAYWARD", "COMOX-STRATHCONA", "SUBD. B", 
+  "COMOX-STRATHCONA", "SUBD. A", "COMOX 1", "PENTLEDGE 2", "AHAMINAQUUS 12", 
+  "CAMPBELL RIVER 11", "CHENAHKINT 12", "HOUPSITAS 6", "MISSION ISLAND 2", "NUCHATL 2", 
+  "NUCHATL 1", "QUINSAM 12", "VILLAGE ISLAND 1", "YUQUOT 1", "AUPE 6", "AUPE 6A", 
+  "CAPE MUDGE 10", "SQUIRREL COVE 8", "TATPO-OOSE 10", "TORK 7", "POWELL RIVER", 
+  "POWELL RIVER", "SUBD. A", "SLIAMMON 1", "HARWOOD ISLAND 2", "GIBSONS", "SECHELT", 
+  "SUNSHINE COAST", "SUBD. A", "CHEKWELP 26", "CHEKWELP 26A", "SESHELT 2", "ALERT BAY", 
+  "PORT MCNEIL", "PORT ALICE", "PORT HARDY", "MOUNT WADDINGTON", "SUBD. B", 
+  "MOUNT WADDINGTON", "SUBD. A", "ALERT BAY 1", "ALERT BAY 1A", "CHES-LA-KEE 3", 
+  "FORT RUPERT 1", "QUATTISHE 1", "TSULQUATE 4", "DEAD POINT 5", "GWAYASDUMS 1", 
+  "HOPETOWN 10A", "KARLUKWEES 1", "MAHMALILLIKULLAH 1", "PAHAS 3", "QUAEE 7", 
+  "KIPPASE 2", "QUATSINO SUBDIVISION 18", "CENTRAL COAST", "SUBD. A", "BELLA BELLA 1", 
+  "BELLA COOLA 1", "KATIT 1", "PORT EDWARD", "PRINCE RUPERT", "SKEENA-QUEEN CHARLOTTE", 
+  "SUBD. A", "MASSET", "SKEENA-QUEEN CHARLOTTE", "SUBD. B", "PORT CLEMENTS", 
+  "PORT SIMPSON 1", "TSIMPSEAN 2", "MASSET 1", "SKIDEGATE 1", "KITIMAT", "TERRACE", 
+  "KITIMAT-STIKINE", "SUBD. C", "HAZELTON", "NEW HAZELTON", "KITIMAT-STIKINE", 
+  "SUBD. B", "STEWART", "KITIMAT-STIKINE", "SUBD. A", "DOLPHIN ISLAND 1", "KITASOO 1", 
+  "KITIMAT 1", "KITSUMKAYLUM 1", "KSHISH 4", "KULKAYU 4", "KULSPAI 6", "CORYATSAQUA 2", 
+  "HAGWILGET 1", "GITANMAAX 1", "KISPIOX 1", "KITSEGUECLA 1", "KITWANCOOL 1", 
+  "KITWANGAR 1", "MORICETOWN 1", "SIK-E-DAKH 2", "AIYANSH 1", "KINCOLITH 14", 
+  "KITWILLUCHSILT 7", "LACHKALTSAP 9", "TELEGRAPH CREEK 6", "NEW AIYANSH 1", 
+  "KLUACHON LAKE 1"
+)
+```
+
+## Création des bases
+
+```{r}
+base_clean <- base |>
+  mutate(group = case_when(
+    Prov_Name == "Newfoundland and Labrador" &
+      toupper(CSD_Name) %in% subdivisions_cotieres_nl ~ "T",
+    Prov_Name == "Prince Edward Island" &
+      toupper(CSD_Name) %in% subdivisions_cotieres_pei ~ "C",
+    Prov_Name == "New Brunswick" &
+      toupper(CSD_Name) %in% subdivisions_cotieres_nb ~ "C",
+    Prov_Name == "British Columbia" &
+      toupper(CSD_Name) %in% subdivisions_cotieres_bc ~ "C",  
+    TRUE ~ NA_character_
+  )) |>
+  filter(group %in% c("C", "T"))
+```
+
+# Analyse exploratoire 
+
+## Valeurs atypiques
+```{r}
+# Boxplots
+boxplot(base_clean$total_postsec_ratio)
+boxplot(base_clean$trade_cert_ratio)
+boxplot(base_clean$non_uni_dip_ratio)
+boxplot(base_clean$uni_dip_ratio)
+boxplot(base_clean$median_income)
+boxplot(base_clean$female_ratio)
+boxplot(base_clean$a0_14_ratio)
+boxplot(base_clean$a15_24_ratio)
+boxplot(base_clean$a25_over_ratio)
+boxplot(base_clean$non_movers_ratio)
+boxplot(base_clean$primary_ind_ratio)
+
+# Test de Rosner
+rosnerTest(base_clean$total_postsec_ratio, k = 20, alpha = 0.05) # 3
+rosnerTest(base_clean$trade_cert_ratio, k = 30, alpha = 0.05) # 17
+rosnerTest(base_clean$non_uni_dip_ratio, k = 15, alpha = 0.05) # 8
+rosnerTest(base_clean$uni_dip_ratio, k = 50, alpha = 0.05) # 38
+rosnerTest(base_clean$median_income, k = 20, alpha = 0.05) # 2
+rosnerTest(base_clean$female_ratio, k = 50, alpha = 0.05) # 34
+rosnerTest(base_clean$a0_14_ratio, k = 20, alpha = 0.05) # 11
+rosnerTest(base_clean$a15_24_ratio, k = 20, alpha = 0.05) # 4
+rosnerTest(base_clean$a25_over_ratio, k = 100, alpha = 0.05) # 78
+rosnerTest(base_clean$non_movers_ratio, k = 20, alpha = 0.05) # 1
+rosnerTest(base_clean$primary_ind_ratio, k = 20, alpha = 0.05) # 5
+
+# 201 valeurs atypiques dans une base de 3496 observations soit 5.8% des données
+# Code pour les supprimer ainsi que les 318 valeurs manquantes (201 + 318 = 519)
+base_clean_2 <- base_clean |>
+  filter(
+    !is.na(total_postsec_ratio) & total_postsec_ratio < 1,
+    !is.na(trade_cert_ratio) & trade_cert_ratio < 0.3613,
+    !is.na(non_uni_dip_ratio) & non_uni_dip_ratio < 0.48,
+    !is.na(uni_dip_ratio) & uni_dip_ratio < 0.3061,
+    !is.na(median_income) & median_income < 100995,
+    !is.na(female_ratio) & female_ratio < 0.6154 & female_ratio > 0.3684,
+    !is.na(a0_14_ratio) & a0_14_ratio < 0.5714,
+    !is.na(a15_24_ratio) & a15_24_ratio < 0.4483,
+    !is.na(a25_over_ratio) & a25_over_ratio < 1.1250 & a25_over_ratio > 0.1429,
+    !is.na(non_movers_ratio) & non_movers_ratio > 0,
+    !is.na(primary_ind_ratio) & primary_ind_ratio < 0.7059
+  )
+
+# Revérification
+rosnerTest(base_clean_2$total_postsec_ratio, k = 20, alpha = 0.05) # 0
+rosnerTest(base_clean_2$trade_cert_ratio, k = 30, alpha = 0.05) # 0
+rosnerTest(base_clean_2$non_uni_dip_ratio, k = 15, alpha = 0.05) # 0
+rosnerTest(base_clean_2$uni_dip_ratio, k = 50, alpha = 0.05) # 0
+rosnerTest(base_clean_2$median_income, k = 20, alpha = 0.05) # 0
+rosnerTest(base_clean_2$female_ratio, k = 50, alpha = 0.05) # 5
+rosnerTest(base_clean_2$a0_14_ratio, k = 20, alpha = 0.05) # 1
+rosnerTest(base_clean_2$a15_24_ratio, k = 20, alpha = 0.05) # 3
+rosnerTest(base_clean_2$a25_over_ratio, k = 20, alpha = 0.05) # 0
+rosnerTest(base_clean_2$non_movers_ratio, k = 20, alpha = 0.05) # 0
+rosnerTest(base_clean_2$primary_ind_ratio, k = 20, alpha = 0.05) # 1
+
+# Correction
+base_clean_3<-base_clean_2[(base_clean_2$female_ratio<0.6095)
+                  &(base_clean_2$female_ratio>0.3750)
+                  &(base_clean_2$a0_14_ratio<0.5455)
+                  &(base_clean_2$a15_24_ratio<0.4)
+                  &(base_clean_2$a25_over_ratio<1.0241)
+                  &(base_clean_2$non_movers_ratio<1)
+                  &(base_clean_2$primary_ind_ratio<0.6923),]
+
+# Dernière vérification
+rosnerTest(base_clean_3$total_postsec_ratio, k = 20, alpha = 0.05) # 0
+rosnerTest(base_clean_3$trade_cert_ratio, k = 20, alpha = 0.05) # 0
+rosnerTest(base_clean_3$non_uni_dip_ratio, k = 15, alpha = 0.05) # 0
+rosnerTest(base_clean_3$uni_dip_ratio, k = 20, alpha = 0.05) # 0
+rosnerTest(base_clean_3$median_income, k = 20, alpha = 0.05) # 0
+rosnerTest(base_clean_3$female_ratio, k = 20, alpha = 0.05) # 0
+rosnerTest(base_clean_3$a0_14_ratio, k = 20, alpha = 0.05) # 0
+rosnerTest(base_clean_3$a15_24_ratio, k = 20, alpha = 0.05) # 0
+rosnerTest(base_clean_3$a25_over_ratio, k = 20, alpha = 0.05) # 0
+rosnerTest(base_clean_3$non_movers_ratio, k = 20, alpha = 0.05) # 0
+rosnerTest(base_clean_3$primary_ind_ratio, k = 20, alpha = 0.05) # 0
+# Plus de valeurs atypiques
+```
+
+## Corrélations
+```{r}
+# library(PerformanceAnalytics)
+mydata <- base_clean_3[, c("median_income","female_ratio", 
+                   "a0_14_ratio","a15_24_ratio",     
+                   "a25_over_ratio","non_movers_ratio", "primary_ind_ratio")]
+
+corr_mat=cor(mydata,method="s")
+
+corrplot(corr_mat, method = 'color',type="upper")
+corrplot(corr_mat, method = 'number',type="upper")
+```
+
+## Histogrammes
+```{r}
+par(mfrow=c(2,2))
+hist(base_clean_3$total_postsec_ratio, xlab="Total Post-Secondary Education", main=" ", col="paleturquoise")
+hist(base_clean_3$trade_cert_ratio, xlab="Trade Certificates", main=" ", col="lightpink")
+hist(base_clean_3$non_uni_dip_ratio, xlab="Non-University Diplomas", main=" ", col="lightgoldenrod1")
+hist(base_clean_3$uni_dip_ratio, xlab="University Diplomas", main=" ", col="palegreen")
+
+par(mfrow=c(1,1))
+hist(base_clean_3$median_income, xlab="Median Income", main=" ", col="grey")
+hist(base_clean_3$female_ratio, xlab="Female Population", main=" ", col="grey")
+hist(base_clean_3$a0_14_ratio, xlab="Age 0 to 14", main=" ", col="grey")
+hist(base_clean_3$a15_24_ratio, xlab="Age 15 to 24", main=" ", col="grey")
+hist(base_clean_3$a25_over_ratio, xlab="Age 25 and over", main=" ", col="grey")
+hist(base_clean_3$non_movers_ratio, xlab="Non-movers", main=" ", col="grey")
+hist(base_clean_3$primary_ind_ratio, xlab="Age 0 to 14", main=" ", col="grey")
+```
+
+## Statistiques descriptives
+```{r}
+# Min., 1st Qu., Median, Mean, 3rd Qu., Max.
+summary(base_clean_3$total_postsec_ratio)
+summary(base_clean_3$trade_cert_ratio)
+summary(base_clean_3$non_uni_dip_ratio)
+summary(base_clean_3$uni_dip_ratio)
+summary(base_clean_3$median_income)
+summary(base_clean_3$female_ratio)
+summary(base_clean_3$a0_14_ratio)
+summary(base_clean_3$a15_24_ratio)
+summary(base_clean_3$a25_over_ratio)
+summary(base_clean_3$non_movers_ratio)
+summary(base_clean_3$primary_ind_ratio)
+
+# Standard Deviation
+sd(base_clean_3$total_postsec_ratio)
+sd(base_clean_3$trade_cert_ratio)
+sd(base_clean_3$non_uni_dip_ratio)
+sd(base_clean_3$uni_dip_ratio)
+sd(base_clean_3$median_income)
+sd(base_clean_3$female_ratio)
+sd(base_clean_3$a0_14_ratio)
+sd(base_clean_3$a15_24_ratio)
+sd(base_clean_3$a25_over_ratio)
+sd(base_clean_3$non_movers_ratio)
+sd(base_clean_3$primary_ind_ratio)
+```
+
+# Création de bases de données
+```{r}
+# C = synthétique
+base_total <- base_clean_3
+
+# Création des variables pertinentes pour la DiD
+base_total <- base_total |>
+  mutate(
+    treated = ifelse(Prov_Name == "Newfoundland and Labrador", 1, 0),
+    post = ifelse(period == 1, 1, 0),
+    did = treated * post
+  )
+
+# C = New Brunswick
+base_nb <- base_total |> 
+  filter(Prov_Name %in% c("Newfoundland and Labrador", "New Brunswick"))
+
+# C = Prince Edward Island
+base_pei <- base_total |> 
+  filter(Prov_Name %in% c("Newfoundland and Labrador", "Prince Edward Island"))
+
+# C = British Columbia
+base_bc <- base_total |> 
+  filter(Prov_Name %in% c("Newfoundland and Labrador", "British Columbia"))
+
+# C = Nova Scotia
+# base_ns <- base_total |> 
+#  filter(Prov_Name %in% c("Newfoundland and Labrador", "Nova Scotia"))
+```
+
+
+# Tendance parallèle
+
+```{r}
+# Années présentes dans les données
+annees_observees <- c(1981, 1986, 1991, 1996, 2001, 2006)
+```
+
+## C = New Brunswick
+
+```{r}
+# Variables à tracer
+vars <- c("total_postsec_ratio", "trade_cert_ratio", "uni_dip_ratio", "non_uni_dip_ratio")
+
+# Fonction pour générer un graphique par variable
+plot_func <- function(var_name) {
+  data_plot <- base_nb %>%
+    filter(Prov_Name %in% c("Newfoundland and Labrador", "New Brunswick")) %>%
+    group_by(year, Prov_Name) %>%
+    summarise(mean_value = mean(.data[[var_name]], na.rm = TRUE), .groups = "drop")
+
+  ggplot(data_plot, aes(x = year, y = mean_value, color = Prov_Name)) +
+    geom_line(size = 1.2) +
+    geom_point() +
+    geom_vline(xintercept = 1992, linetype = "dashed", color = "black") +
+    scale_x_continuous(breaks = annees_observees) +
+    labs(
+      title = paste(var_name, "trends before and after the 1992 moratorium"),
+      x = "Year",
+      y = "Average Rate",
+      color = "Province"
+    ) +
+    theme_classic()
+}
+
+# Créer les graphiques et les stocker dans une liste
+plots <- map(vars, plot_func)
+
+# Afficher tous les graphiques (si tu utilises RStudio)
+plots[[1]]
+plots[[2]]
+plots[[3]]
+plots[[4]]
+```
+
+## C = Prince Edward Island
+
+```{r}
+# Fonction pour générer un graphique par variable
+plot_func <- function(var_name) {
+  data_plot <- base_pei %>%
+    filter(Prov_Name %in% c("Newfoundland and Labrador", "Prince Edward Island")) %>%
+    group_by(year, Prov_Name) %>%
+    summarise(mean_value = mean(.data[[var_name]], na.rm = TRUE), .groups = "drop")
+
+  ggplot(data_plot, aes(x = year, y = mean_value, color = Prov_Name)) +
+    geom_line(size = 1.2) +
+    geom_point() +
+    geom_vline(xintercept = 1992, linetype = "dashed", color = "black") +
+    scale_x_continuous(breaks = annees_observees) +
+    labs(
+      title = paste(var_name, "trends before and after the 1992 moratorium"),
+      x = "Year",
+      y = "Annual Rate",
+      color = "Province"
+    ) +
+    theme_classic()
+}
+
+# Créer les graphiques et les stocker dans une liste
+plots <- map(vars, plot_func)
+
+# Afficher tous les graphiques (si tu utilises RStudio)
+plots[[1]]
+plots[[2]]
+plots[[3]]
+plots[[4]]
+```
+
+```{r}
+plot_func <- function(var_name) {
+  data_plot <- base_pei %>%
+    filter(Prov_Name %in% c("Newfoundland and Labrador", "Prince Edward Island")) %>%
+    group_by(year, Prov_Name) %>%
+    summarise(mean_value = mean(.data[[var_name]], na.rm = TRUE), .groups = "drop")
+
+  ggplot(data_plot, aes(x = year, y = mean_value, color = Prov_Name)) +
+    geom_line(size = 1.2) +
+    geom_point() +
+    geom_vline(xintercept = 1992, linetype = "dashed", color = "black") +
+    scale_x_continuous(breaks = annees_observees) +
+    scale_color_manual(
+      values = c(
+        "Prince Edward Island" = "lightcoral",
+        "Newfoundland and Labrador" = "mediumturquoise"
+      )
+    ) +
+    labs(
+      title = paste(var_name, "trends before and after the 1992 moratorium"),
+      x = "Year",
+      y = "Annual Rate",
+      color = "Province"
+    ) +
+    theme_classic()
+}
+
+# Créer les graphiques et les stocker dans une liste
+plots <- map(vars, plot_func)
+
+# Afficher tous les graphiques
+plots[[1]]
+plots[[2]]
+plots[[3]]
+plots[[4]]
+```
+
+## C = British Columbia
+
+```{r}
+# Fonction pour générer un graphique par variable
+plot_func <- function(var_name) {
+  data_plot <- base_bc %>%
+    filter(Prov_Name %in% c("Newfoundland and Labrador", "British Columbia")) %>%
+    group_by(year, Prov_Name) %>%
+    summarise(mean_value = mean(.data[[var_name]], na.rm = TRUE), .groups = "drop")
+
+  ggplot(data_plot, aes(x = year, y = mean_value, color = Prov_Name)) +
+    geom_line(size = 1.2) +
+    geom_point() +
+    geom_vline(xintercept = 1992, linetype = "dashed", color = "black") +
+    scale_x_continuous(breaks = annees_observees) +
+    labs(
+      title = paste(var_name, "trends before and after the 1992 moratorium"),
+      x = "Year",
+      y = "Average Rate",
+      color = "Province"
+    ) +
+    theme_classic()
+}
+
+# Créer les graphiques et les stocker dans une liste
+plots <- map(vars, plot_func)
+
+# Afficher tous les graphiques (si tu utilises RStudio)
+plots[[1]]
+plots[[2]]
+plots[[3]]
+plots[[4]]
+```
+
+## C = Synthetic
+
+```{r}
+# Fonction pour générer un graphique par variable
+plot_func <- function(var_name) {
+  data_plot <- base_total %>%
+    group_by(year, group) %>%
+    summarise(mean_value = mean(.data[[var_name]], na.rm = TRUE), .groups = "drop")
+
+  ggplot(data_plot, aes(x = year, y = mean_value, color = group)) +
+    geom_line(size = 1.2) +
+    geom_point() +
+    geom_vline(xintercept = 1992, linetype = "dashed", color = "black") +
+    scale_x_continuous(breaks = annees_observees) +
+    labs(
+      title = paste(var_name, "trends before and after the 1992 moratorium"),
+      x = "Year",
+      y = "Average Rate",
+      color = "Province"
+    ) +
+    theme_classic()
+}
+
+# Créer les graphiques et les stocker dans une liste
+plots <- map(vars, plot_func)
+
+# Afficher tous les graphiques
+plots[[1]]
+plots[[2]]
+plots[[3]]
+plots[[4]]
+```
+
+# DiD
+
+## Synthetic
+
+### Simple
+
+```{r}
+synth_simple <- lm(total_postsec_ratio ~ treated + post + did, data = base_total)
+summary(synth_simple)
+
+synth_simple_2 <- lm(trade_cert_ratio ~ treated + post + did, data = base_total)
+summary(synth_simple_2)
+
+synth_simple_3 <- lm(non_uni_dip_ratio ~ treated + post + did, data = base_total)
+summary(synth_simple_3)
+
+synth_simple_4 <- lm(uni_dip_ratio ~ treated + post + did, data = base_total)
+summary(synth_simple_4)
+```
+
+total_postsec_ratio : coeff négatif significatif (*) 5%
+R-squared:  0.3683
+trade_cert_ratio : coeff positif significatif (***) 1%
+R-squared:  0.3441
+non_uni_dip_ratio : coeff négatif significatif (.) 10%
+R-squared:  0.04376
+uni_dip_ratio : coeff négatif significatif (***) 1%
+R-squared:  0.1456
+
+### Control variables
+
+```{r}
+synth_control <- lm(total_postsec_ratio ~ treated + post + did + 
+                      median_income + female_ratio + a15_24_ratio + a25_over_ratio
+                    + non_movers_ratio + primary_ind_ratio, data = base_total)
+summary(synth_control)
+
+synth_control_2 <- lm(trade_cert_ratio ~ treated + post + did + 
+                      median_income + female_ratio + a15_24_ratio + a25_over_ratio
+                    + non_movers_ratio + primary_ind_ratio, data = base_total)
+summary(synth_control_2)
+
+synth_control_3 <- lm(non_uni_dip_ratio ~ treated + post + did + 
+                      median_income + female_ratio + a15_24_ratio + a25_over_ratio
+                    + non_movers_ratio + primary_ind_ratio, data = base_total)
+summary(synth_control_3)
+
+synth_control_4 <- lm(uni_dip_ratio ~ treated + post + did + 
+                      median_income + female_ratio + a15_24_ratio + a25_over_ratio
+                    + non_movers_ratio + primary_ind_ratio, data = base_total)
+summary(synth_control_4)
+```
+
+total_postsec_ratio : coeff pas significatif 
+R-squared:  0.5909
+trade_cert_ratio : coeff positif significatif (***) 1%
+R-squared:  0.5025
+non_uni_dip_ratio : coeff négatif significatif (*) 5%
+R-squared:  0.2052
+uni_dip_ratio : coeff négatif significatif (**) 1%
+R-squared:  0.3587
+
+## New Brunswick
+
+### Simple
+
+```{r}
+nb_simple <- lm(total_postsec_ratio ~ treated + post + did, data = base_nb)
+summary(nb_simple)
+
+nb_simple_2 <- lm(trade_cert_ratio ~ treated + post + did, data = base_nb)
+summary(nb_simple_2)
+
+nb_simple_3 <- lm(non_uni_dip_ratio ~ treated + post + did, data = base_nb)
+summary(nb_simple_3)
+
+nb_simple_4 <- lm(uni_dip_ratio ~ treated + post + did, data = base_nb)
+summary(nb_simple_4)
+```
+
+total_postsec_ratio : coeff pas significatif 
+R-squared:  0.3667
+trade_cert_ratio : coeff positif significatif (**) 1%
+R-squared:  0.3623
+non_uni_dip_ratio : coeff pas significatif 
+R-squared:  0.03827
+uni_dip_ratio : coeff pas significatif
+R-squared:  0.1302
+
+### Control variables
+```{r}
+nb_control <- lm(total_postsec_ratio ~ treated + post + did + 
+                      median_income + female_ratio + a15_24_ratio + a25_over_ratio
+                    + non_movers_ratio + primary_ind_ratio, data = base_nb)
+summary(nb_control)
+
+nb_control_2 <- lm(trade_cert_ratio ~ treated + post + did + 
+                      median_income + female_ratio + a15_24_ratio + a25_over_ratio
+                    + non_movers_ratio + primary_ind_ratio, data = base_nb)
+summary(nb_control_2)
+
+nb_control_3 <- lm(non_uni_dip_ratio ~ treated + post + did + 
+                      median_income + female_ratio + a15_24_ratio + a25_over_ratio
+                    + non_movers_ratio + primary_ind_ratio, data = base_nb)
+summary(nb_control_3)
+
+nb_control_4 <- lm(uni_dip_ratio ~ treated + post + did + 
+                      median_income + female_ratio + a15_24_ratio + a25_over_ratio
+                    + non_movers_ratio + primary_ind_ratio, data = base_nb)
+summary(nb_control_4)
+```
+
+total_postsec_ratio : coeff pas significatif 
+R-squared:  0.5999
+trade_cert_ratio : coeff positif significatif (***) 1%
+R-squared:  0.5527
+non_uni_dip_ratio : coeff pas significatif 
+R-squared:  0.2385
+uni_dip_ratio : coeff pas significatif
+R-squared:  0.3256
+
+## Prince Edward Island
+
+### Simple
+
+```{r}
+pei_simple <- lm(total_postsec_ratio ~ treated + post + did, data = base_pei)
+summary(pei_simple)
+
+pei_simple_2 <- lm(trade_cert_ratio ~ treated + post + did, data = base_pei)
+summary(pei_simple_2)
+
+pei_simple_3 <- lm(non_uni_dip_ratio ~ treated + post + did, data = base_pei)
+summary(pei_simple_3)
+
+pei_simple_4 <- lm(uni_dip_ratio ~ treated + post + did, data = base_pei)
+summary(pei_simple_4)
+```
+
+total_postsec_ratio : coeff négatif significatif  (**) 1%
+R-squared:  0.3726
+trade_cert_ratio : coeff positif significatif (*) 5%
+R-squared:  0.3534
+non_uni_dip_ratio : coeff négatif significatif (*) 5%
+R-squared:  0.03772
+uni_dip_ratio : coeff négatif significatif (***) 1%
+R-squared:  0.1848
+
+### Control variables
+
+```{r}
+pei_control <- lm(total_postsec_ratio ~ treated + post + did + 
+                      median_income + female_ratio + a15_24_ratio + a25_over_ratio
+                    + non_movers_ratio + primary_ind_ratio, data = base_pei)
+summary(pei_control)
+
+pei_control_2 <- lm(trade_cert_ratio ~ treated + post + did + 
+                      median_income + female_ratio + a15_24_ratio + a25_over_ratio
+                    + non_movers_ratio + primary_ind_ratio, data = base_pei)
+summary(pei_control_2)
+
+pei_control_3 <- lm(non_uni_dip_ratio ~ treated + post + did + 
+                      median_income + female_ratio + a15_24_ratio + a25_over_ratio
+                    + non_movers_ratio + primary_ind_ratio, data = base_pei)
+summary(pei_control_3)
+
+pei_control_4 <- lm(uni_dip_ratio ~ treated + post + did + 
+                      median_income + female_ratio + a15_24_ratio + a25_over_ratio
+                    + non_movers_ratio + primary_ind_ratio, data = base_pei)
+summary(pei_control_4)
+```
+
+total_postsec_ratio : coeff pas significatif
+R-squared:  0.5897
+trade_cert_ratio : coeff positif significatif (***) 1%
+R-squared:  0.5316
+non_uni_dip_ratio : coeff pas significatif
+R-squared:  0.2136
+uni_dip_ratio : coeff négatif significatif (*) 5%
+R-squared:  0.3715
+
+## British Columbia
+
+### Simple
+
+```{r}
+bc_simple <- lm(total_postsec_ratio ~ treated + post + did, data = base_bc)
+summary(bc_simple)
+
+bc_simple_2 <- lm(trade_cert_ratio ~ treated + post + did, data = base_bc)
+summary(bc_simple_2)
+
+bc_simple_3 <- lm(non_uni_dip_ratio ~ treated + post + did, data = base_bc)
+summary(bc_simple_3)
+
+bc_simple_4 <- lm(uni_dip_ratio ~ treated + post + did, data = base_bc)
+summary(bc_simple_4)
+```
+
+total_postsec_ratio : coeff négatif significatif (*) 5%
+R-squared:  0.326
+trade_cert_ratio : coeff positif significatif (***) 1%
+R-squared:  0.3311
+non_uni_dip_ratio : coeff négatif significatif (.) 10%
+R-squared:  0.0278
+uni_dip_ratio : coeff négatif significatif (**) 1%
+R-squared:  0.1235
+
+### Control variables
+
+```{r}
+bc_control <- lm(total_postsec_ratio ~ treated + post + did + 
+                      median_income + female_ratio + a15_24_ratio + a25_over_ratio
+                    + non_movers_ratio + primary_ind_ratio, data = base_bc)
+summary(bc_control)
+
+bc_control_2 <- lm(trade_cert_ratio ~ treated + post + did + 
+                      median_income + female_ratio + a15_24_ratio + a25_over_ratio
+                    + non_movers_ratio + primary_ind_ratio, data = base_bc)
+summary(bc_control_2)
+
+bc_control_3 <- lm(non_uni_dip_ratio ~ treated + post + did + 
+                      median_income + female_ratio + a15_24_ratio + a25_over_ratio
+                    + non_movers_ratio + primary_ind_ratio, data = base_bc)
+summary(bc_control_3)
+
+bc_control_4 <- lm(uni_dip_ratio ~ treated + post + did + 
+                      median_income + female_ratio + a15_24_ratio + a25_over_ratio
+                    + non_movers_ratio + primary_ind_ratio, data = base_bc)
+summary(bc_control_4)
+```
+
+total_postsec_ratio : coeff négatif significatif (***) 1%
+R-squared:  0.5748
+trade_cert_ratio : coeff positif significatif (***) 1%
+R-squared:  0.4736
+non_uni_dip_ratio : coeff négatif significatif (**) 1%
+R-squared:  0.2049
+uni_dip_ratio : coeff négatif significatif (***) 1%
+R-squared:  0.3598
+
+### STEP
+```{r}
+modele0_simple<-lm(total_postsec_ratio~1,data=base_total)
+
+#Méthode ascendante
+step(modele0_simple, scope=list(lower=modele0_simple, upper=synth_control),data=base_total,
+direction="forward")
+# lm(formula = total_postsec_ratio ~ median_income + post + non_movers_ratio + primary_ind_ratio + a15_24_ratio + female_ratio + did, data = base_total)
+# Step:  AIC=-14633.46
+
+#méthode descendante
+step(synth_control, data=base_total,direction="backward")
+# lm(formula = total_postsec_ratio ~ post + did + median_income + 
+#    female_ratio + a15_24_ratio + non_movers_ratio + primary_ind_ratio, 
+#    data = base_total)
+# AIC=-14633.46
+
+#méthode dans les 2 sens
+step(modele0_simple, scope = list(upper=synth_control),data=base_total,direction="both")
+# lm(formula = total_postsec_ratio ~ median_income + post + non_movers_ratio + primary_ind_ratio + a15_24_ratio + female_ratio + did, data = base_total)
+#AIC=-14633.46
+```
+
+# Tests sur les modèles (tests MCO)
+
+## Linéarité des paramètres
+```{r}
+plot(synth_control, 1)
+```
+
+## Normalité des résidus (Kolmogorov-Smirnov test)
+```{r}
+ks.test(residuals(synth_simple), "pnorm", mean = mean(residuals(synth_simple)), sd = sd(residuals(synth_simple)))
+
+par(mfrow=c(1,2))
+hist(residuals(synth_simple), main = "Histogram of residuals", xlab = "Residuals", col="lavenderblush2")
+qqnorm(residuals(synth_simple))
+qqline(residuals(synth_simple), col = "red")
+par(mfrow=c(1,1))
+```
+
+## Multicolinéarité
+```{r}
+vif(synth_simple)
+vif(synth_control)
+```
+
+## Homoscédasticité des résidus
+```{r}
+plot(synth_control, 3)
+```
+
+
